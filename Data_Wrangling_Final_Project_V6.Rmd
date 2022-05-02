@@ -1,0 +1,570 @@
+---
+title: "Data Wrangling Project"
+author: "Shourya Thatha Ravi and Usha Kiran Bellam"
+date: "4/30/2022" 
+output:
+  html_document: default
+  pdf_document: default 
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r,warning=FALSE}
+library(rvest)
+library(tidyverse)
+library(httr) 
+library(curl) 
+library(jsonlite)
+library(dplyr)
+library(ggplot2)
+library(tidytext)
+library(textdata)
+library(lubridate)
+library(tm)
+library(topicmodels)
+library(wordcloud)
+library(RColorBrewer)
+library(textmineR)
+library(rio)
+library(shiny)
+library(shinythemes)
+library(ggplot2)
+library(ggpubr)
+```
+
+
+
+```{r,include=FALSE}
+# #FIRESTICK
+# amazon_fun = function(product, pg_num){
+#   amazon_url = paste0("https://www.amazon.com/fire-tv-stick-lite/product-reviews/",product,"/ref=cm_cr_arp_d_paging_btm_next_2?ie=UTF8&reviewerType=all_reviews&pageNumber=",pg_num)
+#   var1 = read_html(amazon_url) 
+#   review_title = var1 %>% html_nodes("[class='a-size-base a-link-normal review-title a-color-base review-title-content a-text-bold']") %>% html_text() 
+#   review_text =  var1 %>% html_nodes("[class='a-size-base review-text review-text-content']") %>% html_text()
+#   review_rating = var1 %>% html_nodes("[data-hook='review-star-rating']") %>% html_text() -> review_star
+#   review_date = var1 %>% html_nodes("[data-hook='review-date']") %>% html_text()
+#     
+#   return(tibble(title = review_title, text = review_text,rating = review_rating, review_date = review_date, page = pg_num))
+# }
+# 
+# all_reviews = tibble()
+# #decide about the page number later
+# for(i in 1:500){
+#   review = amazon_fun(product = "B07YNLBS7R", pg_num = i) 
+#   all_reviews = bind_rows(all_reviews,review)
+#   #Sys.sleep(1)
+#   }
+# all_reviews_firestick = all_reviews 
+# 
+# 
+# #CHROMECAST
+# amazon_fun = function(product, pg_num){
+#   amazon_url = paste0("https://www.amazon.com/Google-GA00439-US-Chromecast-3rd-Generation/product-reviews/",product,"/ref=cm_cr_dp_d_show_all_btm?ie=UTF8&reviewerType=all_reviews&pageNumber=",pg_num)
+#   var1 = read_html(amazon_url) 
+#   review_title = var1 %>% html_nodes("[class='a-size-base a-link-normal review-title a-color-base review-title-content a-text-bold']") %>% html_text() 
+#   review_text =  var1 %>% html_nodes("[class='a-size-base review-text review-text-content']") %>% html_text()
+#   review_rating = var1 %>% html_nodes("[data-hook='review-star-rating']") %>% html_text() -> review_star
+#   review_date = var1 %>% html_nodes("[data-hook='review-date']") %>% html_text()
+#     
+#   return(tibble(title = review_title, text = review_text,rating = review_rating, review_date = review_date, page = pg_num))
+# }
+# 
+# all_reviews = tibble()
+# #decide about the page number later
+# for(i in 1:500){
+#   review = amazon_fun(product = "B015UKRNGS", pg_num = i)
+#   all_reviews = bind_rows(all_reviews,review)
+#   #Sys.sleep(1)
+#   }
+# all_reviews_chromecast = all_reviews
+# 
+# 
+# #ROKU
+# roku_fn = function(product, pg_num){
+#   amazon_url = paste0("https://www.amazon.com/Roku-Streaming-Stick-HDR-Streaming-Long-range/product-reviews/",product,"/ref=cm_cr_dp_d_show_all_btm?ie=UTF8&reviewerType=all_reviews&pageNumber=",pg_num)
+#   var1 = read_html(amazon_url) 
+#   review_title = var1 %>% html_nodes("[class='a-size-base a-link-normal review-title a-color-base review-title-content a-text-bold']") %>% html_text() 
+#   review_text =  var1 %>% html_nodes("[class='a-size-base review-text review-text-content']") %>% html_text()
+#   review_rating = var1 %>% html_nodes("[data-hook='review-star-rating']") %>% html_text() -> review_star
+#   review_date = var1 %>% html_nodes("[data-hook='review-date']") %>% html_text()
+#     
+#   return(tibble(title = review_title, text = review_text,rating = review_rating, review_date = review_date, page = pg_num))
+# }
+# 
+# all_reviews = tibble()
+# #decide about the page number later
+# for(i in 1:500){
+#   review = roku_fn(product = "B075XLWML4", pg_num = i)
+#   all_reviews = bind_rows(all_reviews,review)
+#   #Sys.sleep(1)
+#   }
+# 
+# all_reviews_roku = all_reviews
+# 
+# 
+# #SAVING DATAFRAME AS R OBJECTS
+# save(all_reviews_firestick,file='amazon_firestick_reviews.Rda')
+# save(all_reviews_chromecast,file='chromecast_reviews.Rda')
+# save(all_reviews_roku,file='roku_reviews.Rda')
+```
+
+
+```{r}
+all_reviews_firestick = import(file = 'amazon_firestick_reviews.Rda')
+all_reviews_chromeast= import(file = 'chromecast_reviews.Rda')
+all_reviews_roku = import(file = 'roku_reviews.Rda')
+```
+
+
+```{r}
+ui = fluidPage(
+theme=shinytheme("darkly"),
+titlePanel("Amazon Review Application"),
+sidebarLayout(sidebarPanel(selectInput("product", label = "Select Product", choices = list("Amazon Fire Stick" = "firestick", "Roku" = "roku", "Google Chromecast" = "chromecast"), selected = "firestick"),
+selectInput("lexicons", label = "Select Lexicons", choices = list("Afinn" = "afinn", "Bing" = "bing", "NRC" = "nrc"), selected = "afinn"),
+radioButtons(inputId = 'date_level',label = 'Date',choices = list("Date level" = "date_level","Month level" = "month_level"),selected = "date_level" ),
+selectInput("charts", label = "Select Chart Type", choices = list("Word Cloud" = "wc", "Rating Comparison" = "rate", "Sentiment" = "sentiment","Not Applicable" = "na"), selected = "na")
+) ,mainPanel(plotOutput("plot1"),plotOutput("plot2"))
+#,mainPanel(plotOutput("hist"),plotOutput("hist2"))
+))
+
+```
+
+
+
+```{r}
+server <- function(input, output){
+
+#testing
+# output$plot1 <- renderPlot({
+# if(input$lexicons == 'afinn'){
+#     if(input$date_level == 'date_level'){
+#       hist(rnorm(1000), nclass=5)
+#     }
+#     else{
+#       hist(rnorm(1000), nclass=25)
+#     }
+# }
+# })
+
+output$plot1 <- renderPlot({
+  
+  #to load reviews data
+if(input$product == 'firestick'){
+  #load("amazon_firestick_reviews.Rda")
+  all_reviews_cleaned = all_reviews_firestick
+}
+else if (input$product == 'chromecast'){
+  #load("chromecast_reviews.Rda")
+  all_reviews_cleaned = all_reviews_chromecast
+}
+else {
+  #load("roku_reviews.Rda")
+  all_reviews_cleaned = all_reviews_roku
+}
+
+
+#CLEANING REVIEWS TABLE
+all_reviews_cleaned$title = str_replace_all(all_reviews_cleaned$title,"\n ","")
+all_reviews_cleaned$title = str_replace_all(all_reviews_cleaned$title,"\n     ","")
+all_reviews_cleaned$title = str_replace_all(all_reviews_cleaned$title,"\n","")
+
+all_reviews_cleaned$text = str_replace_all(all_reviews_cleaned$text,"\n ","")
+all_reviews_cleaned$text = str_replace_all(all_reviews_cleaned$text,"\n      ","")
+all_reviews_cleaned$text = str_replace_all(all_reviews_cleaned$text,"\n","")
+
+all_reviews_cleaned$review_date = str_replace_all(all_reviews_cleaned$review_date,"Reviewed in the United States on ","")
+head(all_reviews_cleaned)
+
+#Converting review date into a usable format
+all_reviews_cleaned <- all_reviews_cleaned %>% mutate(year = apply(all_reviews_cleaned, 1, function(x) strsplit(x[4], " +")[[1]][[3]]))
+
+all_reviews_cleaned <- all_reviews_cleaned %>% mutate(month = apply(all_reviews_cleaned, 1, function(x) strsplit(x[4], " +")[[1]][[1]]))
+
+all_reviews_cleaned <- all_reviews_cleaned %>% mutate(day = apply(all_reviews_cleaned, 1, function(x) strsplit(x[4], " +")[[1]][[2]]))
+
+all_reviews_cleaned$day = str_replace_all(all_reviews_cleaned$day,",","")
+
+all_reviews_cleaned <- all_reviews_cleaned %>% mutate(review_date_updated = ymd(paste(all_reviews_cleaned$year, all_reviews_cleaned$month, all_reviews_cleaned$day)))
+head(all_reviews_cleaned)
+
+all_reviews_cleaned <- arrange(all_reviews_cleaned, desc(review_date_updated))
+head(all_reviews_cleaned)
+
+all_reviews_cleaned <- all_reviews_cleaned %>% mutate(month_year = paste(month, year))
+head(all_reviews_cleaned)
+
+all_reviews_cleaned$month_order_int = match(all_reviews_cleaned$month_year,unique(all_reviews_cleaned$month_year))
+head(all_reviews_cleaned)
+
+all_reviews_cleaned = all_reviews_cleaned %>% mutate(month_order = max(month_order_int) - month_order_int + 1) 
+
+#ADDING AN INCREMENTAL NUMBER FOR EACH TITLE
+all_reviews_cleaned = all_reviews_cleaned  %>% mutate(review_number = row_number())
+head(all_reviews_cleaned)
+
+#TOKENIZING
+text_word_tokens = all_reviews_cleaned %>% unnest_tokens(word,text) %>% select(review_number,review_date_updated, month_year, month_order, word)
+text_word_tokens = text_word_tokens %>% anti_join(stop_words) 
+text_word_tokens = text_word_tokens %>% mutate(word = str_extract(word, "[a-z]+")) #to make sure we only have words and not numbers
+text_word_tokens = text_word_tokens %>% anti_join(stop_words) 
+head(text_word_tokens)
+
+#CHECKING COMMON WORDS
+count_words_text = text_word_tokens %>% count(word, sort = TRUE) 
+head(count_words_text,25)
+
+#REMOVING PRODUCT SPECIFIC WORDS - removing words that are product specific or technical
+prod_words = c('fire','stick','tv','remote','firestick','amazon','prime','roku','lite','device',
+               'app','apps','alexa','netflix', 'streaming', 'cable', 'chromecast', 'cast', 'stream', 'internet', 'wifi', 'bought', 'product', 'purchased', 'google', 'roku', 'iphone', 'apple', 'phone', 'watch')
+
+#replacing all the product specific words with NA
+text_word_tokens[,5] = lapply(text_word_tokens[,5], function(x) replace(x,x %in% prod_words,NA)) 
+
+#removing rows with NA
+text_word_tokens = text_word_tokens %>% drop_na(word)
+head(text_word_tokens)
+
+count_words_text2 = text_word_tokens %>% count(word, sort = TRUE) %>% head(100)
+head(count_words_text2)
+
+#wordcloud::wordcloud(words = count_words_text2$word, freq = count_words_text2$n)
+
+#afinn lexicon
+#getting the value from afinn
+afinn_lex = get_sentiments("afinn")
+df_score = text_word_tokens %>% inner_join(afinn_lex)
+df_score
+
+count_df_score = df_score %>% count(word, sort = TRUE) 
+count_df_score
+
+#calculating the score for each review 
+df_score2 = df_score %>% group_by(review_number, review_date_updated, month_year, month_order) %>% summarise(sent_score = sum(value)/n() )
+df_score2
+
+#normalizing the score to 1-5 scale
+df_score2 = df_score2 %>% mutate(norm_score = ifelse(sent_score==0,1,(0.4*(sent_score-5)) + 5))
+#df_score2 = df_score2 %>% mutate(norm_score = ifelse(sent_score==0,1,(4/(max(sent_score)-min(sent_score))*(sent_score-5)) + 5))
+df_score2 = df_score2 %>% mutate(predicted_rating = round(norm_score))
+df_score2
+
+#comparing the predicted rating for each review with the actual rating
+actual_rating = all_reviews_cleaned %>% select(rating,review_number, review_date_updated, month_year, month_order)
+actual_rating$rating = as.numeric(substr(actual_rating$rating,1,3))
+actual_rating
+
+df_score_compare = df_score2 %>% inner_join(actual_rating)
+df_score_compare
+
+cor(df_score_compare$predicted_rating,df_score_compare$rating) #we have to improve the correlation 1) increase n 2) remove outliers 3) try different scaling formula
+cor(df_score_compare$norm_score,df_score_compare$rating)
+
+df_score_compare <- df_score_compare %>% rename(predicted_rating = predicted_rating)
+
+#day level plot
+df_score_aggregated <- df_score_compare %>% group_by(review_date_updated) %>% summarize(predicted_rating = mean(predicted_rating), rating = mean(rating) )
+
+df_score_compare_longer <- df_score_aggregated %>% pivot_longer(predicted_rating:rating, names_to = "type_of_rating", values_to ="rating")
+df_score_compare_longer
+
+afinn_day_level = ggplot(df_score_compare_longer) +
+  geom_line(mapping = aes(review_date_updated, rating, colour = type_of_rating)) +
+  ylab("Rating")+
+  xlab("Date") + ggtitle("Day level time series values of Average Rating") + theme(plot.title = element_text(face = "bold", size=15, hjust = 0.5)) + scale_colour_discrete(labels = c("Predicted Rating", "Rating"), name = "Rating Type")
+
+
+#month level plot
+df_score_aggregated2 <- df_score_compare %>% group_by(month_year, month_order) %>% summarize(predicted_rating = mean(predicted_rating), rating = mean(rating) )
+
+df_score_compare_longer2 <- df_score_aggregated2 %>% pivot_longer(predicted_rating:rating, names_to = "type_of_rating", values_to ="rating")
+df_score_compare_longer2
+
+afinn_month_level = ggplot(df_score_compare_longer2) +
+  geom_line(mapping = aes(x=reorder(month_year, month_order), y=rating, group = type_of_rating, colour = type_of_rating)) +
+  ylab("Rating")+
+  xlab("Month") + ylim(1, 5) + theme(axis.text.x=element_text(size=8, angle=90,hjust=0.95,vjust=0.2)) + ggtitle("Month level time series values of Average Rating") + theme(plot.title = element_text(face = "bold", size=15, hjust = 0.5)) + scale_colour_discrete(labels = c("Predicted Rating", "Rating"), name = "Rating Type")
+
+#bing lexicon
+bing_lex = get_sentiments("bing")
+df_bing_score = text_word_tokens %>% inner_join(bing_lex)
+df_bing_score
+
+df_bing_score2 = df_bing_score %>% group_by(review_number, review_date_updated, month_year, month_order, sentiment) %>% summarize(n = n()) %>% pivot_wider(names_from = "sentiment", values_from = "n")
+df_bing_score2
+
+df_bing_score2[is.na(df_bing_score2)] = 0
+df_bing_score2 = df_bing_score2 %>% mutate(positive_perc = positive/(positive+negative))
+
+#scaling the positive perc to 1-5 scale
+df_bing_score3 = df_bing_score2 %>% mutate(norm_score = (4*(positive_perc-1)) + 5)
+df_bing_score3 = df_bing_score3 %>% mutate(predicted_rating = round(norm_score))
+df_bing_score3 = df_bing_score3 %>% inner_join(actual_rating)
+df_bing_score3
+
+cor(df_bing_score3$predicted_rating,df_bing_score3$rating) #we have to improve the correlation 1) increase n 2) remove outliers 3) try different scaling formula
+cor(df_bing_score3$norm_score,df_bing_score3$rating) 
+
+#day level plot
+df_bing_score3_aggregated <- df_bing_score3 %>% group_by(review_date_updated) %>% summarize(predicted_rating = mean(predicted_rating), rating = mean(rating) )
+
+df_bing_score3_aggregated_longer <- df_bing_score3_aggregated %>% pivot_longer(predicted_rating:rating, names_to = "type_of_rating", values_to ="rating")
+df_bing_score3_aggregated_longer
+
+bing_day_level = ggplot(df_bing_score3_aggregated_longer) +
+  geom_line(mapping = aes(review_date_updated, rating, colour = type_of_rating)) +
+  ylab("Rating")+
+  xlab("Date") + ggtitle("Day level time series values of Average Rating") +  theme(plot.title = element_text(face = "bold", size=15, hjust = 0.5)) + scale_colour_discrete(labels = c("Predicted Rating", "Rating"), name = "Rating Type")
+
+#month level plot
+df_bing_score3_aggregated2 <- df_bing_score3 %>% group_by(month_year, month_order) %>% summarize(predicted_rating = mean(predicted_rating), rating = mean(rating) )
+
+df_bing_score3_aggregated_longer2 <- df_bing_score3_aggregated2 %>% pivot_longer(predicted_rating:rating, names_to = "type_of_rating", values_to ="rating")
+df_bing_score3_aggregated_longer2
+
+bing_month_level = ggplot(df_bing_score3_aggregated_longer2) +
+  geom_line(mapping = aes(x=reorder(month_year, month_order), y=rating, group = type_of_rating, colour = type_of_rating)) +
+  ylab("Rating")+
+  xlab("Month") + ylim(1, 5) + theme(axis.text.x=element_text(size=8, angle=90,hjust=0.95,vjust=0.2)) + ggtitle("Month level time series values of Average Rating") + theme(plot.title = element_text(face = "bold", size=15, hjust = 0.5)) + scale_colour_discrete(labels = c("Predicted Rating", "Rating"), name = "Rating Type")
+
+#nrc lexicon
+#For review number regression analysis
+nrc_lex = get_sentiments("nrc")
+df_nrc_score = text_word_tokens %>% inner_join(nrc_lex)
+df_nrc_score
+
+df_nrc_score_num_words = df_nrc_score %>% group_by(review_number) %>% summarize(n = n_distinct(word))
+df_nrc_score_num_words
+
+df_nrc_score2 = df_nrc_score %>% group_by(review_number, sentiment) %>% summarize(n = n_distinct(word)) %>% pivot_wider(names_from = "sentiment", values_from = "n")
+df_nrc_score2
+
+df_nrc_score2[is.na(df_nrc_score2)] = 0
+
+df_nrc_score3 = df_nrc_score2 %>% inner_join(df_nrc_score_num_words)
+df_nrc_score3
+
+df_nrc_score3 = df_nrc_score3 %>% mutate(anger_perc = anger/n)
+df_nrc_score3 = df_nrc_score3 %>% mutate(anticipation_perc = anticipation/n)
+df_nrc_score3 = df_nrc_score3 %>% mutate(disgust_perc = disgust/n)
+df_nrc_score3 = df_nrc_score3 %>% mutate(fear_perc = fear/n)
+df_nrc_score3 = df_nrc_score3 %>% mutate(joy_perc = joy/n)
+df_nrc_score3 = df_nrc_score3 %>% mutate(negative_perc = negative/n)
+df_nrc_score3 = df_nrc_score3 %>% mutate(positive_perc = positive/n)
+df_nrc_score3 = df_nrc_score3 %>% mutate(sadness_perc = sadness/n)
+df_nrc_score3 = df_nrc_score3 %>% mutate(surprise_perc = surprise/n)
+df_nrc_score3 = df_nrc_score3 %>% mutate(trust_perc = trust/n)
+df_nrc_score3
+
+df_nrc_score4 = df_nrc_score3 %>% inner_join(actual_rating)
+df_nrc_score4
+
+lm_nrc = lm(rating ~ anger_perc + anticipation_perc + disgust_perc + fear_perc + joy_perc + joy_perc + negative_perc + positive_perc + sadness_perc + surprise_perc + trust_perc, data = df_nrc_score4)  
+summary(lm_nrc)
+
+lm_nrc2 = lm(rating ~ anger_perc + anticipation_perc + disgust_perc + fear_perc + joy_perc + joy_perc + negative_perc + positive_perc + sadness_perc + surprise_perc + trust_perc, data = df_nrc_score4, weights = month_order)  
+summary(lm_nrc2)
+
+#for day and month plots
+
+nrc_lex = get_sentiments("nrc")
+df_nrc_score = text_word_tokens %>% inner_join(nrc_lex)
+df_nrc_score
+
+df_nrc_score_num_words = df_nrc_score %>% group_by(review_date_updated) %>% summarize(n = n_distinct(word))
+df_nrc_score_num_words
+
+df_nrc_score2 = df_nrc_score %>% group_by(review_date_updated, month_year, month_order, sentiment) %>% summarize(n_sentiment = n_distinct(word)) 
+df_nrc_score2
+
+df_nrc_score2[is.na(df_nrc_score2)] = 0
+
+df_nrc_score3 = df_nrc_score2 %>% inner_join(df_nrc_score_num_words)
+df_nrc_score3
+
+df_nrc_score3 = df_nrc_score3 %>% mutate(sentimet_percentage = n_sentiment/n)
+df_nrc_score3
+
+#overall sentiment analysis for all time frame
+
+df_nrc_score_aggregated <- df_nrc_score3 %>% group_by(sentiment) %>% summarize(n_sentiment = sum(n_sentiment), n = sum(n)) %>% mutate(sentimet_percentage = n_sentiment/n) %>% arrange(desc(sentimet_percentage))
+
+df_nrc_score_aggregated
+
+sentiment_bar = ggplot(df_nrc_score_aggregated) +
+  geom_bar(mapping=aes(x=reorder(sentiment, desc(sentimet_percentage)),y=sentimet_percentage*100, fill = sentiment),stat="identity") +
+  theme_minimal() +
+  ylab("Percentage") +
+  xlab("Sentiment") + ggtitle("Top Sentiments Overall") +  theme(plot.title = element_text(face = "bold", size=15, hjust = 0.5)) + scale_colour_discrete(labels = c("Anger","Anticipation","Disgust","Fear","Joy","Negative","Positive","Sadness","Surprise","Trust"), name = "Sentiment")
+
+
+# day level plots
+df_nrc_score4 <- df_nrc_score3 %>% filter(sentiment == "positive" | sentiment == "negative")
+
+nrc_day_level1 = ggplot(df_nrc_score4) +
+  geom_line(mapping=aes(review_date_updated, sentimet_percentage*100, colour = sentiment)) +
+  ylab("Sentiment Percentage") + ggtitle("Day level time series values of Sentiment Percentage") +  theme(plot.title = element_text(face = "bold", size=9, hjust = 0.5)) + xlab("Date") + scale_colour_discrete(labels = c("Negative","Positive"), name = "Sentiment")
+
+
+df_nrc_score5 <- df_nrc_score3 %>% filter(sentiment == "joy" | sentiment == "sadness")
+
+nrc_day_level2 = ggplot(df_nrc_score5) +
+  geom_line(mapping=aes(review_date_updated, sentimet_percentage*100, colour = sentiment)) +
+  ylab("Sentiment Percentage")+
+  xlab("Date") + ggtitle("Day level time series values of Sentiment Percentage") +  theme(plot.title = element_text(face = "bold", size=9, hjust = 0.5)) + scale_colour_discrete(labels = c("Joy","Sadness"), name = "Sentiment")
+
+
+df_nrc_score6 <- df_nrc_score3 %>% filter(sentiment == "anger" | sentiment == "anticipation" | sentiment == "fear")
+
+nrc_day_level3 = ggplot(df_nrc_score6) +
+  geom_line(mapping=aes(review_date_updated, sentimet_percentage*100, colour = sentiment)) +
+  ylab("Sentiment Percentage")+
+  xlab("Date") + ggtitle("Day level time series values of Sentiment Percentage") +  theme(plot.title = element_text(face = "bold", size=9, hjust = 0.5)) + scale_colour_discrete(labels = c("Anger","Anticipation","fear"), name = "Sentiment")
+
+
+df_nrc_score7 <- df_nrc_score3 %>% filter(sentiment == "disgust" | sentiment == "surprise" | sentiment == "trust")
+
+nrc_day_level4 = ggplot(df_nrc_score7) +
+  geom_line(mapping=aes(review_date_updated, sentimet_percentage*100, colour = sentiment)) +
+  ylab("Sentiment Percentage")+
+  xlab("Date") + ggtitle("Day level time series values of Sentiment Percentage") +  theme(plot.title = element_text(face = "bold", size=9, hjust = 0.5)) + scale_colour_discrete(labels = c("Disgust","Surprise","Trust"), name = "Sentiment")
+
+
+# month level plots
+
+df_nrc_score_num_words2 = df_nrc_score %>% group_by(month_year, month_order) %>% summarize(n = n_distinct(word))
+df_nrc_score_num_words2
+
+df_nrc_score3 = df_nrc_score %>% group_by(month_year, month_order, sentiment) %>% summarize(n_sentiment = n_distinct(word)) 
+df_nrc_score3
+
+df_nrc_score3[is.na(df_nrc_score3)] = 0
+
+df_nrc_score4 = df_nrc_score3 %>% inner_join(df_nrc_score_num_words2)
+df_nrc_score4
+
+df_nrc_score4 = df_nrc_score4 %>% mutate(sentimet_percentage = n_sentiment/n)
+df_nrc_score4
+
+nrc_month_level = ggplot(df_nrc_score4) +
+  geom_line(mapping = aes(x=reorder(month_year, month_order), y=sentimet_percentage*100, group = sentiment, colour = sentiment)) +
+  ylab("Sentiment Percentage")+
+  xlab("Month") + theme(axis.text.x=element_text(size=8, angle=90,hjust=0.95,vjust=0.2)) + ggtitle("Month level time series values of Sentiment Percentage") +  theme(plot.title = element_text(face = "bold", size=15, hjust = 0.5)) + scale_colour_discrete(labels = c("Anger","Anticipation","Disgust","Fear","Joy","Negative","Positive","Sadness","Surprise","Trust"), name = "Sentiment")
+
+
+if(input$lexicons == 'afinn'){
+  if(input$charts == 'rate' & input$date_level == 'date_level'){
+    print(afinn_day_level)
+  }
+  if(input$charts == 'rate' & input$date_level == 'month_level'){
+    print(afinn_month_level)
+  }
+  if(input$charts == 'wc'){
+    print(wordcloud(words = count_words_text2$word, freq = count_words_text2$n))
+  }  
+  
+}
+else if(input$lexicons == 'bing'){
+  if(input$charts == 'rate' & input$date_level == 'date_level'){
+    print(bing_day_level)
+  }
+  if(input$charts == 'rate' & input$date_level == 'month_level'){
+    print(bing_month_level)
+  }
+  if(input$charts == 'wc'){
+    print(wordcloud(words = count_words_text2$word, freq = count_words_text2$n))
+  }  
+  
+}
+else{
+  if(input$charts == 'rate' & input$date_level == 'date_level'){
+    print(ggarrange(nrc_day_level1,nrc_day_level2,nrc_day_level3,nrc_day_level4),ncol=2,nrow=2)
+  }
+  if(input$charts == 'rate' & input$date_level == 'month_level' ){
+    print(nrc_month_level)
+  }
+  if(input$charts == 'wc'){
+    print(wordcloud(words = count_words_text2$word, freq = count_words_text2$n))
+  }
+  if(input$charts == 'sentiment'){
+    print(sentiment_bar)
+  }
+  
+}
+
+
+
+})
+  
+  
+  
+  
+  
+  
+}
+```
+
+
+
+```{r, include = FALSE}
+# library(shinythemes)
+# 
+# ui = fluidPage(
+# theme=shinytheme("darkly"),
+# titlePanel("Amazon Review Application"),
+# sidebarLayout(sidebarPanel(selectInput("product", label = "Select Product", choices = list("Amazon Fire Stick" = "firestick", "Roku" = "roku", "Google Chromecast" = "chromecast"), selected = "firestick"),
+# selectInput("lexicons", label = "Select Lexicons", choices = list("Afinn" = "afinn", "Bing" = "bing", "NRC" = "nrc"), selected = "afinn"),radioButtons(inputId = 'date_level',label = 'Date',choices = list("Date level" = "date_level","Month level" = "month_level"),selected = "date_level" )
+# ) ,mainPanel(plotOutput("hist"),plotOutput("hist2"))
+# #,mainPanel(plotOutput("hist"),plotOutput("hist2"))
+# ))
+# 
+# 
+# # server <- function(input, output) {
+# # 
+# # #all_reviews_cleaned is the common variable
+# # # if(input$product == 'firestick'){
+# # #   load("amazon_firestick_reviews.Rda")
+# # #   all_reviews_cleaned = all_reviews_firestick
+# # # }
+# # #   else if (input$product == 'chromecast'){
+# # #   load("chromecast_reviews.Rda")
+# # #   all_reviews_cleaned = all_reviews_chromecast   
+# # #   }
+# # # else {
+# # #   load("roku_reviews.Rda")
+# # #   all_reviews_cleaned = all_reviews_roku
+# # # }  
+# #   
+# # # output$hist <- renderPlot({
+# # # hist(rnorm(1000), nclass=input$product)
+# # # })
+# # }
+# 
+# # 
+# # ui <- fluidPage(
+# # sliderInput(inputId = 'num',
+# # label = 'Number of bins',
+# # value = 25, min = 1, max = 100),
+# # plotOutput("hist")
+# # )
+# # server <- function(input, output) {
+# # output$hist <- renderPlot({
+# # hist(rnorm(1000), nclass=input$num)
+# # })
+# # }
+
+
+
+```
+
+```{r}
+shinyApp(ui=ui,server = server)
+```
+
+
+
+

@@ -1,20 +1,20 @@
 ---
 title: "Data Wrangling Project"
 author: "Shourya Thatha Ravi and Usha Kiran Bellam"
-date: "4/30/2022" 
+date: "05/05/2022" 
 output:
   html_document: default
   pdf_document: default 
-runtime: shiny
+runtime: shiny #this line can be commented to see the static html page 
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
-```{r,warning=FALSE}
-library(rvest)
+Declaring all the required libraries
+```{r, warning=FALSE,message=FALSE}
+library(rvest) 
 library(tidyverse)
 library(httr) 
 library(curl) 
@@ -37,119 +37,101 @@ library(ggpubr)
 ```
 
 
+Data pull for 3 different product reviews from Amazon
+```{r,eval=FALSE}
+#RUN THIS ONLY ONCE AND SAVE DATA IN THE WORKING DIRECTORY
+#FIRESTICK DATA PULL
+amazon_fun = function(product, pg_num){
+  amazon_url = paste0("https://www.amazon.com/fire-tv-stick-lite/product-reviews/",product,"/ref=cm_cr_arp_d_paging_btm_next_2?ie=UTF8&reviewerType=all_reviews&pageNumber=",pg_num)
+  var1 = read_html(amazon_url)
+  review_title = var1 %>% html_nodes("[class='a-size-base a-link-normal review-title a-color-base review-title-content a-text-bold']") %>% html_text()
+  review_text =  var1 %>% html_nodes("[class='a-size-base review-text review-text-content']") %>% html_text()
+  review_rating = var1 %>% html_nodes("[data-hook='review-star-rating']") %>% html_text() -> review_star
+  review_date = var1 %>% html_nodes("[data-hook='review-date']") %>% html_text()
 
-```{r,include=FALSE}
-# #FIRESTICK
-# amazon_fun = function(product, pg_num){
-#   amazon_url = paste0("https://www.amazon.com/fire-tv-stick-lite/product-reviews/",product,"/ref=cm_cr_arp_d_paging_btm_next_2?ie=UTF8&reviewerType=all_reviews&pageNumber=",pg_num)
-#   var1 = read_html(amazon_url) 
-#   review_title = var1 %>% html_nodes("[class='a-size-base a-link-normal review-title a-color-base review-title-content a-text-bold']") %>% html_text() 
-#   review_text =  var1 %>% html_nodes("[class='a-size-base review-text review-text-content']") %>% html_text()
-#   review_rating = var1 %>% html_nodes("[data-hook='review-star-rating']") %>% html_text() -> review_star
-#   review_date = var1 %>% html_nodes("[data-hook='review-date']") %>% html_text()
-#     
-#   return(tibble(title = review_title, text = review_text,rating = review_rating, review_date = review_date, page = pg_num))
-# }
-# 
-# all_reviews = tibble()
-# #decide about the page number later
-# for(i in 1:500){
-#   review = amazon_fun(product = "B07YNLBS7R", pg_num = i) 
-#   all_reviews = bind_rows(all_reviews,review)
-#   #Sys.sleep(1)
-#   }
-# all_reviews_firestick = all_reviews 
-# 
-# 
-# #CHROMECAST
-# amazon_fun = function(product, pg_num){
-#   amazon_url = paste0("https://www.amazon.com/Google-GA00439-US-Chromecast-3rd-Generation/product-reviews/",product,"/ref=cm_cr_dp_d_show_all_btm?ie=UTF8&reviewerType=all_reviews&pageNumber=",pg_num)
-#   var1 = read_html(amazon_url) 
-#   review_title = var1 %>% html_nodes("[class='a-size-base a-link-normal review-title a-color-base review-title-content a-text-bold']") %>% html_text() 
-#   review_text =  var1 %>% html_nodes("[class='a-size-base review-text review-text-content']") %>% html_text()
-#   review_rating = var1 %>% html_nodes("[data-hook='review-star-rating']") %>% html_text() -> review_star
-#   review_date = var1 %>% html_nodes("[data-hook='review-date']") %>% html_text()
-#     
-#   return(tibble(title = review_title, text = review_text,rating = review_rating, review_date = review_date, page = pg_num))
-# }
-# 
-# all_reviews = tibble()
-# #decide about the page number later
-# for(i in 1:500){
-#   review = amazon_fun(product = "B015UKRNGS", pg_num = i)
-#   all_reviews = bind_rows(all_reviews,review)
-#   #Sys.sleep(1)
-#   }
-# all_reviews_chromecast = all_reviews
-# 
-# 
-# #ROKU
-# roku_fn = function(product, pg_num){
-#   amazon_url = paste0("https://www.amazon.com/Roku-Streaming-Stick-HDR-Streaming-Long-range/product-reviews/",product,"/ref=cm_cr_dp_d_show_all_btm?ie=UTF8&reviewerType=all_reviews&pageNumber=",pg_num)
-#   var1 = read_html(amazon_url) 
-#   review_title = var1 %>% html_nodes("[class='a-size-base a-link-normal review-title a-color-base review-title-content a-text-bold']") %>% html_text() 
-#   review_text =  var1 %>% html_nodes("[class='a-size-base review-text review-text-content']") %>% html_text()
-#   review_rating = var1 %>% html_nodes("[data-hook='review-star-rating']") %>% html_text() -> review_star
-#   review_date = var1 %>% html_nodes("[data-hook='review-date']") %>% html_text()
-#     
-#   return(tibble(title = review_title, text = review_text,rating = review_rating, review_date = review_date, page = pg_num))
-# }
-# 
-# all_reviews = tibble()
-# #decide about the page number later
-# for(i in 1:500){
-#   review = roku_fn(product = "B075XLWML4", pg_num = i)
-#   all_reviews = bind_rows(all_reviews,review)
-#   #Sys.sleep(1)
-#   }
-# 
-# all_reviews_roku = all_reviews
-# 
-# 
-# #SAVING DATAFRAME AS R OBJECTS
-# save(all_reviews_firestick,file='amazon_firestick_reviews.Rda')
-# save(all_reviews_chromecast,file='chromecast_reviews.Rda')
-# save(all_reviews_roku,file='roku_reviews.Rda')
+  return(tibble(title = review_title, text = review_text,rating = review_rating, review_date = review_date, page = pg_num))
+}
+
+all_reviews = tibble()
+for(i in 1:500){
+  review = amazon_fun(product = "B07YNLBS7R", pg_num = i)
+  all_reviews = bind_rows(all_reviews,review)
+  }
+all_reviews_firestick = all_reviews
+
+
+#CHROMECAST DATA PULL
+amazon_fun = function(product, pg_num){
+  amazon_url = paste0("https://www.amazon.com/Google-GA00439-US-Chromecast-3rd-Generation/product-reviews/",product,"/ref=cm_cr_dp_d_show_all_btm?ie=UTF8&reviewerType=all_reviews&pageNumber=",pg_num)
+  var1 = read_html(amazon_url)
+  review_title = var1 %>% html_nodes("[class='a-size-base a-link-normal review-title a-color-base review-title-content a-text-bold']") %>% html_text()
+  review_text =  var1 %>% html_nodes("[class='a-size-base review-text review-text-content']") %>% html_text()
+  review_rating = var1 %>% html_nodes("[data-hook='review-star-rating']") %>% html_text() -> review_star
+  review_date = var1 %>% html_nodes("[data-hook='review-date']") %>% html_text()
+
+  return(tibble(title = review_title, text = review_text,rating = review_rating, review_date = review_date, page = pg_num))
+}
+
+all_reviews = tibble()
+for(i in 1:500){
+  review = amazon_fun(product = "B015UKRNGS", pg_num = i)
+  all_reviews = bind_rows(all_reviews,review)
+  }
+all_reviews_chromecast = all_reviews
+
+
+#ROKU DATA PULL
+roku_fn = function(product, pg_num){
+  amazon_url = paste0("https://www.amazon.com/Roku-Streaming-Stick-HDR-Streaming-Long-range/product-reviews/",product,"/ref=cm_cr_dp_d_show_all_btm?ie=UTF8&reviewerType=all_reviews&pageNumber=",pg_num)
+  var1 = read_html(amazon_url)
+  review_title = var1 %>% html_nodes("[class='a-size-base a-link-normal review-title a-color-base review-title-content a-text-bold']") %>% html_text()
+  review_text =  var1 %>% html_nodes("[class='a-size-base review-text review-text-content']") %>% html_text()
+  review_rating = var1 %>% html_nodes("[data-hook='review-star-rating']") %>% html_text() -> review_star
+  review_date = var1 %>% html_nodes("[data-hook='review-date']") %>% html_text()
+
+  return(tibble(title = review_title, text = review_text,rating = review_rating, review_date = review_date, page = pg_num))
+}
+
+all_reviews = tibble()
+for(i in 1:500){
+  review = roku_fn(product = "B075XLWML4", pg_num = i)
+  all_reviews = bind_rows(all_reviews,review)
+  }
+
+all_reviews_roku = all_reviews
+
+
+#SAVING DATAFRAME AS R OBJECTS
+save(all_reviews_firestick,file='amazon_firestick_reviews.Rda')
+save(all_reviews_chromecast,file='chromecast_reviews.Rda')
+save(all_reviews_roku,file='roku_reviews.Rda')
 ```
-
-
+ 
+Importing data to workspace from the working directory
 ```{r}
 all_reviews_firestick = import(file = 'amazon_firestick_reviews.Rda')
-all_reviews_chromeast= import(file = 'chromecast_reviews.Rda')
-all_reviews_roku = import(file = 'roku_reviews.Rda')
+all_reviews_chromecast= import(file = 'chromecast_reviews.Rda')
+all_reviews_roku = import(file = 'roku_reviews.Rda') 
 ```
 
-
+User Interface using shiny
 ```{r}
 ui = fluidPage(
 theme=shinytheme("darkly"),
-titlePanel("Amazon Review Application"),
+titlePanel("Amazon Reviews Application"),
 sidebarLayout(sidebarPanel(selectInput("product", label = "Select Product", choices = list("Amazon Fire Stick" = "firestick", "Roku" = "roku", "Google Chromecast" = "chromecast"), selected = "firestick"),
 selectInput("lexicons", label = "Select Lexicons", choices = list("Afinn" = "afinn", "Bing" = "bing", "NRC" = "nrc"), selected = "afinn"),
 radioButtons(inputId = 'date_level',label = 'Date',choices = list("Date level" = "date_level","Month level" = "month_level"),selected = "date_level" ),
 selectInput("charts", label = "Select Chart Type", choices = list("Word Cloud" = "wc", "Rating Comparison" = "rate", "Sentiment" = "sentiment","Not Applicable" = "na"), selected = "na")
-) ,mainPanel(plotOutput("plot1"),plotOutput("plot2"))
-#,mainPanel(plotOutput("hist"),plotOutput("hist2"))
+) ,mainPanel(plotOutput("plot1"))
 ))
 
 ```
 
 
-
+Server function for rendering the plot object. All the logic of the code is wrapped around this server function. 
 ```{r}
 server <- function(input, output){
-
-#testing
-# output$plot1 <- renderPlot({
-# if(input$lexicons == 'afinn'){
-#     if(input$date_level == 'date_level'){
-#       hist(rnorm(1000), nclass=5)
-#     }
-#     else{
-#       hist(rnorm(1000), nclass=25)
-#     }
-# }
-# })
 
 output$plot1 <- renderPlot({
   
@@ -166,7 +148,6 @@ else {
   #load("roku_reviews.Rda")
   all_reviews_cleaned = all_reviews_roku
 }
-
 
 #CLEANING REVIEWS TABLE
 all_reviews_cleaned$title = str_replace_all(all_reviews_cleaned$title,"\n ","")
@@ -276,7 +257,6 @@ afinn_day_level = ggplot(df_score_compare_longer) +
   geom_line(mapping = aes(review_date_updated, rating, colour = type_of_rating)) +
   ylab("Rating")+
   xlab("Date") + ggtitle("Day level time series values of Average Rating") + theme(plot.title = element_text(face = "bold", size=15, hjust = 0.5)) + scale_colour_discrete(labels = c("Predicted Rating", "Rating"), name = "Rating Type")
-
 
 #month level plot
 df_score_aggregated2 <- df_score_compare %>% group_by(month_year, month_order) %>% summarize(predicted_rating = mean(predicted_rating), rating = mean(rating) )
@@ -401,7 +381,6 @@ sentiment_bar = ggplot(df_nrc_score_aggregated) +
   ylab("Percentage") +
   xlab("Sentiment") + ggtitle("Top Sentiments Overall") +  theme(plot.title = element_text(face = "bold", size=15, hjust = 0.5)) + scale_colour_discrete(labels = c("Anger","Anticipation","Disgust","Fear","Joy","Negative","Positive","Sadness","Surprise","Trust"), name = "Sentiment")
 
-
 # day level plots
 df_nrc_score4 <- df_nrc_score3 %>% filter(sentiment == "positive" | sentiment == "negative")
 
@@ -432,7 +411,6 @@ nrc_day_level4 = ggplot(df_nrc_score7) +
   geom_line(mapping=aes(review_date_updated, sentimet_percentage*100, colour = sentiment)) +
   ylab("Sentiment Percentage")+
   xlab("Date") + ggtitle("Day level time series values of Sentiment Percentage") +  theme(plot.title = element_text(face = "bold", size=9, hjust = 0.5)) + scale_colour_discrete(labels = c("Disgust","Surprise","Trust"), name = "Sentiment")
-
 
 # month level plots
 
@@ -495,72 +473,11 @@ else{
   }
   
 }
-
-
-
 })
-  
-  
-  
-  
-  
-  
 }
 ```
 
-
-
-```{r, include = FALSE}
-# library(shinythemes)
-# 
-# ui = fluidPage(
-# theme=shinytheme("darkly"),
-# titlePanel("Amazon Review Application"),
-# sidebarLayout(sidebarPanel(selectInput("product", label = "Select Product", choices = list("Amazon Fire Stick" = "firestick", "Roku" = "roku", "Google Chromecast" = "chromecast"), selected = "firestick"),
-# selectInput("lexicons", label = "Select Lexicons", choices = list("Afinn" = "afinn", "Bing" = "bing", "NRC" = "nrc"), selected = "afinn"),radioButtons(inputId = 'date_level',label = 'Date',choices = list("Date level" = "date_level","Month level" = "month_level"),selected = "date_level" )
-# ) ,mainPanel(plotOutput("hist"),plotOutput("hist2"))
-# #,mainPanel(plotOutput("hist"),plotOutput("hist2"))
-# ))
-# 
-# 
-# # server <- function(input, output) {
-# # 
-# # #all_reviews_cleaned is the common variable
-# # # if(input$product == 'firestick'){
-# # #   load("amazon_firestick_reviews.Rda")
-# # #   all_reviews_cleaned = all_reviews_firestick
-# # # }
-# # #   else if (input$product == 'chromecast'){
-# # #   load("chromecast_reviews.Rda")
-# # #   all_reviews_cleaned = all_reviews_chromecast   
-# # #   }
-# # # else {
-# # #   load("roku_reviews.Rda")
-# # #   all_reviews_cleaned = all_reviews_roku
-# # # }  
-# #   
-# # # output$hist <- renderPlot({
-# # # hist(rnorm(1000), nclass=input$product)
-# # # })
-# # }
-# 
-# # 
-# # ui <- fluidPage(
-# # sliderInput(inputId = 'num',
-# # label = 'Number of bins',
-# # value = 25, min = 1, max = 100),
-# # plotOutput("hist")
-# # )
-# # server <- function(input, output) {
-# # output$hist <- renderPlot({
-# # hist(rnorm(1000), nclass=input$num)
-# # })
-# # }
-
-
-
-```
-
+Run shiny app to open the User interface through the R markdown html file
 ```{r}
 shinyApp(ui=ui,server = server)
 ```

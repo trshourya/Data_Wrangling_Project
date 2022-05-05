@@ -9,7 +9,7 @@ runtime: shiny #this line can be commented to see the static html page
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE) 
 ```
 
 Declaring all the required libraries
